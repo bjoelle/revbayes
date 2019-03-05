@@ -72,8 +72,8 @@ void CorrelatedMHMove::performMcmcMove(double prHeat, double lHeat,
 		saved_nodes.push_back(*n->clone());
 	}
 
-	getProposal().prepareProposal();
-	double mainHR = getProposal().doProposal();
+	getMainProposal().prepareProposal();
+	double mainHR = getMainProposal().doProposal();
 
 	// only nodes that have actually been changed by the proposal need to be saved
 	for(DagNode* n : getDagNodes()) {
@@ -83,14 +83,14 @@ void CorrelatedMHMove::performMcmcMove(double prHeat, double lHeat,
 		} );
 		if(it == saved_nodes.end()) {
 			std::cerr << "Error, no saved matching node found for node " << nm ;
-			getProposal().undoProposal();
+			getMainProposal().undoProposal();
 			return ;
 		}
 		if(n->getValueAsString() == ((DagNode) *it).getValueAsString()) saved_nodes.erase(it);
 	}
 
 	if(!RbMath::isAComputableNumber(mainHR)) {
-		if(RbMath::isNan(mainHR)) std::cerr << "Warning: using proposal " << getProposal().getProposalName() << " resulted in HastingsRatio = NaN";
+		if(RbMath::isNan(mainHR)) std::cerr << "Warning: using proposal " << getMainProposal().getProposalName() << " resulted in HastingsRatio = NaN";
 	}
 	else {
 		double fullPosteriorRatio = computePosteriorRatio(lHeat, pHeat, prHeat);

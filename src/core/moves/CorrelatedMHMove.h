@@ -30,10 +30,16 @@ protected:
 	void performMcmcMove(double prHeat, double lHeat, double pHeat);
     void performHillClimbingMove(double lHeat, double pHeat);
     double computePosteriorRatio(double lHeat, double pHeat, double prHeat = 1);
+    double computePosterior(double lHeat, double pHeat, double prHeat = 1);
+    void rejectProposal(Proposal* p);
+    void acceptProposal(Proposal* p);
+    void restoreNodesFromSaved(bool all = true);
 
 private:
-	std::vector<Proposal*> draggedProposals;
-	unsigned int nSteps;
+	std::vector<Proposal*> dragged_proposals;
+	std::vector<DagNode*> saved_nodes;
+	std::vector<DagNode*> saved_nodes_x;
+	unsigned int n_steps;
 };
 
 } /* namespace RevBayesCore */

@@ -15,31 +15,33 @@
 #include "RbOrderedSet.h"
 #include "RbMathLogic.h"
 #include "RbConstants.h"
+#include "RandomNumberFactory.h"
+#include "RandomNumberGenerator.h"
 
 namespace RevBayesCore {
 
 CorrelatedMHMove::CorrelatedMHMove(Proposal* main, std::vector<Proposal*> dragged,
 		unsigned int ns, double w, bool autoTune) :
-																				MetropolisHastingsMove(main,w,autoTune),
-																				draggedProposals(dragged),
-																				nSteps(ns) {
-	if(draggedProposals.size() < 1) throw new RbException("Trying to initialize correlated operator without dragged proposals.");
-	for(Proposal* p : draggedProposals) {
+																																MetropolisHastingsMove(main,w,autoTune),
+																																dragged_proposals(dragged),
+																																n_steps(ns) {
+	if(dragged_proposals.size() < 1) throw new RbException("Trying to initialize correlated operator without dragged proposals.");
+	for(Proposal* p : dragged_proposals) {
 		p->setMove(this);
 	}
 }
 
 CorrelatedMHMove::CorrelatedMHMove(const CorrelatedMHMove& m) :
-														MetropolisHastingsMove(m),
-														draggedProposals(m.draggedProposals),
-														nSteps(m.nSteps) {
-	for(Proposal* p : draggedProposals) {
+																										MetropolisHastingsMove(m),
+																										dragged_proposals(m.dragged_proposals),
+																										n_steps(m.n_steps) {
+	for(Proposal* p : dragged_proposals) {
 		p->setMove(this);
 	}
 }
 
 CorrelatedMHMove::~CorrelatedMHMove() {
-	for(Proposal* p : draggedProposals) {
+	for(Proposal* p : dragged_proposals) {
 		delete p;
 	}
 }
@@ -49,11 +51,11 @@ Proposal& CorrelatedMHMove::getMainProposal() {
 }
 
 std::vector<Proposal*> CorrelatedMHMove::getDraggedProposals() {
-	return draggedProposals;
+	return dragged_proposals;
 }
 
 unsigned int CorrelatedMHMove::getNSteps() {
-	return nSteps;
+	return n_steps;
 }
 
 double CorrelatedMHMove::getMoveTuningParameter() const {
@@ -67,53 +69,173 @@ void CorrelatedMHMove::performMcmcMove(double prHeat, double lHeat,
 		double pHeat) {
 
 	// copy state from before main proposal
-	std::vector<DagNode> saved_nodes;
+	saved_nodes.clear();
+	saved_nodes_x.clear();
 	for(DagNode* n : getDagNodes()) {
-		saved_nodes.push_back(*n->clone());
+		DagNode* copy = &(*n->clone());
+		saved_nodes.push_back(copy);
+		saved_nodes_x.push_back(copy);
 	}
 
+	double Exy = computePosterior(lHeat, pHeat, prHeat);
+
+	// update to primary variable (x -> nx)
 	getMainProposal().prepareProposal();
 	double mainHR = getMainProposal().doProposal();
+
+	if(!RbMath::isAComputableNumber(mainHR)) {
+		if(RbMath::isNan(mainHR)) std::cerr << "Warning: using proposal " << getMainProposal().getProposalName() << " resulted in HastingsRatio = NaN";
+		rejectProposal(&getMainProposal());
+		return ;
+	}
 
 	// only nodes that have actually been changed by the proposal need to be saved
 	for(DagNode* n : getDagNodes()) {
 		std::string nm = n->getName();
-		auto it = std::find_if(saved_nodes.begin(), saved_nodes.end(), [](DagNode const& obj){
+		auto it = std::find_if(saved_nodes_x.begin(), saved_nodes_x.end(), [](DagNode const& obj){
 			return obj.getName() == nm;
 		} );
-		if(it == saved_nodes.end()) {
-			std::cerr << "Error, no saved matching node found for node " << nm ;
-			getMainProposal().undoProposal();
-			return ;
-		}
-		if(n->getValueAsString() == ((DagNode) *it).getValueAsString()) saved_nodes.erase(it);
+		if(it == saved_nodes_x.end()) throw new RbException("Error, no saved matching node found for node " + nm );
+		if(n->getValueAsString() == ((DagNode) *it).getValueAsString()) saved_nodes_x.erase(it);
 	}
 
-	if(!RbMath::isAComputableNumber(mainHR)) {
-		if(RbMath::isNan(mainHR)) std::cerr << "Warning: using proposal " << getMainProposal().getProposalName() << " resulted in HastingsRatio = NaN";
+	double Enxy = computePosterior(lHeat, pHeat, prHeat);
+	double fullPosteriorRatio = Exy - Enxy;
+
+	double loopHR = 0, stepHR, Exny, Enxny;
+
+	// updates to secondary variable(s) (y -> ny)
+	for(int ii = 0; ii < n_steps; ii++) {
+
+		Proposal* p = dragged_proposals[0]; //TODO update for scenario w/more than 1
+
+		p->prepareProposal();
+		stepHR = p->doProposal();
+
+		if(!RbMath::isAComputableNumber(loopHR)) {
+			if(RbMath::isNan(loopHR)) std::cerr << "Warning: using proposal " << p->getProposalName() << " resulted in HastingsRatio = NaN";
+			rejectProposal(p);
+			continue;
+		}
+
+		Enxny = computePosterior(lHeat, pHeat, prHeat);
+
+		// restore value of x to calculate Exny
+		restoreNodesFromSaved(false);
+		Exny = computePosterior(lHeat, pHeat, prHeat);
+
+		// restore value of nx
+		restoreNodesFromSaved(false);
+		double acceptanceRatio = (Enxy - Enxny)*(ii+1)/(n_steps+1) - (Exy - Exny)*ii/(n_steps+1) + stepHR;
+		if(acceptanceRatio >= 0|| GLOBAL_RNG -> uniform01() < exp(acceptanceRatio)) {
+			acceptProposal(p);
+			loopHR += stepHR;
+			Exy = Exny;
+			Enxy = Enxny;
+		}
+		else {
+			rejectProposal(p);
+		}
+
+		fullPosteriorRatio += Exy - Enxy;
+	}
+
+	double fullAcceptanceRatio = (fullPosteriorRatio + loopHR + mainHR)/(n_steps+1);
+	if(fullAcceptanceRatio >= 0 || GLOBAL_RNG -> uniform01() < exp(fullAcceptanceRatio)) {
+		acceptProposal(&getMainProposal());
+		num_accepted_total++;
+		num_accepted_current_period++;
 	}
 	else {
-		double fullPosteriorRatio = computePosteriorRatio(lHeat, pHeat, prHeat);
-
-		double loopHR;
-		Proposal* p = draggedProposals[0]; //TODO update for scenario w/more than 1
-
-		for(int ii = 0; ii < nSteps; ii++) {
-			p->prepareProposal();
-			loopHR = p->doProposal();
-
-			if(!RbMath::isAComputableNumber(loopHR)) {
-				if(RbMath::isNan(loopHR)) std::cerr << "Warning: using proposal " << p->getProposalName() << " resulted in HastingsRatio = NaN";
-			}
-			else {
-
-			}
-		}
+		getMainProposal().undoProposal();
+		restoreNodesFromSaved(true);
 	}
-
 }
 
 void CorrelatedMHMove::performHillClimbingMove(double lHeat, double pHeat) {
+
+	// copy state from before main proposal
+	saved_nodes.clear();
+	saved_nodes_x.clear();
+	for(DagNode* n : getDagNodes()) {
+		DagNode* copy = &(*n->clone());
+		saved_nodes.push_back(copy);
+		saved_nodes_x.push_back(copy);
+	}
+
+	double Exy = computePosterior(lHeat, pHeat);
+
+	// update to primary variable (x -> nx)
+	getMainProposal().prepareProposal();
+	double mainHR = getMainProposal().doProposal();
+
+	if(!RbMath::isAComputableNumber(mainHR)) {
+		if(RbMath::isNan(mainHR)) std::cerr << "Warning: using proposal " << getMainProposal().getProposalName() << " resulted in HastingsRatio = NaN";
+		rejectProposal(&getMainProposal());
+		return ;
+	}
+
+	// only nodes that have actually been changed by the proposal need to be saved
+	for(DagNode* n : getDagNodes()) {
+		std::string nm = n->getName();
+		auto it = std::find_if(saved_nodes_x.begin(), saved_nodes_x.end(), [](DagNode const& obj){
+			return obj.getName() == nm;
+		} );
+		if(it == saved_nodes_x.end()) throw new RbException("Error, no saved matching node found for node " + nm );
+		if(n->getValueAsString() == ((DagNode) *it).getValueAsString()) saved_nodes_x.erase(it);
+	}
+
+	double Enxy = computePosterior(lHeat, pHeat);
+	double fullPosteriorRatio = Exy - Enxy;
+
+	double loopHR = 0, stepHR, Exny, Enxny;
+
+	// updates to secondary variable(s) (y -> ny)
+	for(int ii = 0; ii < n_steps; ii++) {
+
+		Proposal* p = dragged_proposals[0]; //TODO update for scenario w/more than 1
+
+		p->prepareProposal();
+		stepHR = p->doProposal();
+
+		if(!RbMath::isAComputableNumber(loopHR)) {
+			if(RbMath::isNan(loopHR)) std::cerr << "Warning: using proposal " << p->getProposalName() << " resulted in HastingsRatio = NaN";
+			rejectProposal(p);
+			continue;
+		}
+
+		Enxny = computePosterior(lHeat, pHeat);
+
+		// restore value of x to calculate Exny
+		restoreNodesFromSaved(false);
+		Exny = computePosterior(lHeat, pHeat);
+
+		// restore value of nx
+		restoreNodesFromSaved(false);
+		double acceptanceRatio = (Enxy - Enxny)*(ii+1)/(n_steps+1) - (Exy - Exny)*ii/(n_steps+1) + stepHR;
+		if(acceptanceRatio >= 0) {
+			acceptProposal(p);
+			loopHR += stepHR;
+			Exy = Exny;
+			Enxy = Enxny;
+		}
+		else {
+			rejectProposal(p);
+		}
+
+		fullPosteriorRatio += Exy - Enxy;
+	}
+
+	double fullAcceptanceRatio = (fullPosteriorRatio + loopHR + mainHR)/(n_steps+1);
+	if(fullAcceptanceRatio >= 0) {
+		acceptProposal(&getMainProposal());
+		num_accepted_total++;
+		num_accepted_current_period++;
+	}
+	else {
+		getMainProposal().undoProposal();
+		restoreNodesFromSaved(true);
+	}
 }
 
 double CorrelatedMHMove::computePosteriorRatio(double lHeat, double pHeat, double prHeat) {
@@ -153,6 +275,78 @@ double CorrelatedMHMove::computePosteriorRatio(double lHeat, double pHeat, doubl
 	double ln_posterior_ratio = pHeat * (lHeat * ln_likelihood_ratio + prHeat * ln_prior_ratio);
 	return ln_posterior_ratio;
 }
+
+double CorrelatedMHMove::computePosterior(double lHeat, double pHeat, double prHeat) {
+
+	double ln_likelihood = 0, ln_prior = 0;
+
+	// Identify nodes that proposal touches
+	const std::vector<DagNode*> touched_nodes = getDagNodes();
+	const RbOrderedSet<DagNode*> &affected_nodes = getAffectedNodes();
+
+	// first we touch all the nodes
+	// that will set the flags for recomputation
+	for (DagNode* the_node : touched_nodes) {
+		// flag for recomputation
+		the_node->touch();
+	}
+
+	// compute the probability of the current value for each node
+	for (DagNode* the_node : touched_nodes) {
+
+		if ( the_node->isClamped() ) ln_likelihood += the_node->getLnProbability();
+		else ln_prior += the_node->getLnProbability();
+
+		if ( !RbMath::isAComputableNumber(ln_prior) || !RbMath::isAComputableNumber(ln_likelihood) ) break;
+	}
+
+	// then we recompute the probability for all the affected nodes
+	for (DagNode* the_node : affected_nodes) {
+
+		if ( the_node->isClamped() ) ln_likelihood += the_node->getLnProbability();
+		else ln_prior += the_node->getLnProbability();
+
+		if ( !RbMath::isAComputableNumber(ln_prior) || !RbMath::isAComputableNumber(ln_likelihood) ) break;
+
+	}
+
+	double ln_posterior_ratio = pHeat * (lHeat * ln_likelihood + prHeat * ln_prior);
+	return ln_posterior_ratio;
+}
+
+void CorrelatedMHMove::rejectProposal(Proposal* p) {
+	p->undoProposal();
+	for(DagNode* n : getDagNodes()) {
+		n->restore();
+	}
+}
+
+void CorrelatedMHMove::acceptProposal(Proposal* p) {
+	for(DagNode* n : getDagNodes()) {
+		n->keep();
+	}
+	p->cleanProposal();
+}
+
+void CorrelatedMHMove::restoreNodesFromSaved(bool all) {
+	std::vector<DagNode*> nodes = getDagNodes();
+	std::vector<DagNode*>* toRestore;
+	if (all) toRestore = &saved_nodes;
+	else toRestore = &saved_nodes_x;
+
+	for(DagNode* n : saved_nodes) {
+		std::string nm = n->getName();
+		auto it = std::find_if(nodes.begin(), nodes.end(), [](DagNode const& obj){
+			return obj.getName() == nm;
+		} );
+		if(it == nodes.end()) throw new RbException("Error, no matching node found for saved node " + nm );
+
+		std::string value = n->getValueAsString();
+		n->setValueFromString(((DagNode) *it).getValueAsString());
+		((DagNode) *it).setValueFromString(value);
+	}
+}
+
 
 } /* namespace RevBayesCore */
 

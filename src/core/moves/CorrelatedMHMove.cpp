@@ -67,80 +67,9 @@ void CorrelatedMHMove::setMoveTuningParameter(double tp) {
 void CorrelatedMHMove::performMcmcMove(double prHeat, double lHeat,
 		double pHeat) {
 
-	// copy state from before main proposal
-	saved_nodes.clear();
-	saved_nodes_x.clear();
-	for(DagNode* n : getDagNodes()) {
-		DagNode* copy = (n->clone());
-		saved_nodes.push_back(copy);
-		saved_nodes_x.push_back(copy);
-	}
-
-	double Exy = computePosterior(lHeat, pHeat, prHeat);
-
-	// update to primary variable (x -> nx)
-	getMainProposal().prepareProposal();
-	double mainHR = getMainProposal().doProposal();
-
-	if(!RbMath::isAComputableNumber(mainHR)) {
-		if(RbMath::isNan(mainHR)) std::cerr << "Warning: using proposal " << getMainProposal().getProposalName() << " resulted in HastingsRatio = NaN";
-		rejectProposal(&getMainProposal());
-		return ;
-	}
-
-	// only nodes that have actually been changed by the proposal need to be saved
-	for(DagNode* n : getDagNodes()) {
-		std::string nm = n->getName();
-		auto it = std::find_if(saved_nodes_x.begin(), saved_nodes_x.end(), [&](DagNode* const obj){
-			return (obj -> getName() == nm);
-		} );
-		if(it == saved_nodes_x.end()) throw new RbException("Error, no saved matching node found for node " + nm );
-		if(n->getValueAsString() == (*it)->getValueAsString()) saved_nodes_x.erase(it);
-	}
-
-	double Enxy = computePosterior(lHeat, pHeat, prHeat);
-	double fullPosteriorRatio = Exy - Enxy;
-
-	double loopHR = 0, stepHR, Exny, Enxny;
-
-	// updates to secondary variable(s) (y -> ny)
-	for(int ii = 0; ii < n_steps; ii++) {
-
-		Proposal* p = dragged_proposals[0]; //TODO update for scenario w/more than 1
-
-		p->prepareProposal();
-		stepHR = p->doProposal();
-
-		if(!RbMath::isAComputableNumber(loopHR)) {
-			if(RbMath::isNan(loopHR)) std::cerr << "Warning: using proposal " << p->getProposalName() << " resulted in HastingsRatio = NaN";
-			rejectProposal(p);
-			continue;
-		}
-
-		Enxny = computePosterior(lHeat, pHeat, prHeat);
-
-		// restore value of x to calculate Exny
-		restoreNodesFromSaved(false);
-		Exny = computePosterior(lHeat, pHeat, prHeat);
-
-		// restore value of nx
-		restoreNodesFromSaved(false);
-		double acceptanceRatio = (Enxy - Enxny)*(ii+1)/(n_steps+1) - (Exy - Exny)*ii/(n_steps+1) + stepHR;
-		if(acceptanceRatio >= 0|| GLOBAL_RNG -> uniform01() < exp(acceptanceRatio)) {
-			acceptProposal(p);
-			loopHR += stepHR;
-			Exy = Exny;
-			Enxy = Enxny;
-		}
-		else {
-			rejectProposal(p);
-		}
-
-		fullPosteriorRatio += Exy - Enxy;
-	}
-
-	double fullAcceptanceRatio = (fullPosteriorRatio + loopHR + mainHR)/(n_steps+1);
-	if(fullAcceptanceRatio >= 0 || GLOBAL_RNG -> uniform01() < exp(fullAcceptanceRatio)) {
+	double fullAcceptanceRatio = performMove(lHeat, pHeat, prHeat);
+	if(RbMath::isAComputableNumber(fullAcceptanceRatio) &&
+			(fullAcceptanceRatio >= 0 || GLOBAL_RNG -> uniform01() < exp(fullAcceptanceRatio))) {
 		acceptProposal(&getMainProposal());
 		setNumberAcceptedTotal(getNumberAcceptedTotal() + 1);
 		setNumberAcceptedCurrentPeriod(getNumberAcceptedCurrentPeriod() + 1);
@@ -153,80 +82,8 @@ void CorrelatedMHMove::performMcmcMove(double prHeat, double lHeat,
 
 void CorrelatedMHMove::performHillClimbingMove(double lHeat, double pHeat) {
 
-	// copy state from before main proposal
-	saved_nodes.clear();
-	saved_nodes_x.clear();
-	for(DagNode* n : getDagNodes()) {
-		DagNode* copy = (n->clone());
-		saved_nodes.push_back(copy);
-		saved_nodes_x.push_back(copy);
-	}
-
-	double Exy = computePosterior(lHeat, pHeat);
-
-	// update to primary variable (x -> nx)
-	getMainProposal().prepareProposal();
-	double mainHR = getMainProposal().doProposal();
-
-	if(!RbMath::isAComputableNumber(mainHR)) {
-		if(RbMath::isNan(mainHR)) std::cerr << "Warning: using proposal " << getMainProposal().getProposalName() << " resulted in HastingsRatio = NaN";
-		rejectProposal(&getMainProposal());
-		return ;
-	}
-
-	// only nodes that have actually been changed by the proposal need to be saved
-	for(DagNode* n : getDagNodes()) {
-		std::string nm = n->getName();
-		auto it = std::find_if(saved_nodes_x.begin(), saved_nodes_x.end(), [&](DagNode* const obj){
-			return obj -> getName() == nm;
-		} );
-		if(it == saved_nodes_x.end()) throw new RbException("Error, no saved matching node found for node " + nm );
-		if(n->getValueAsString() == (*it)->getValueAsString()) saved_nodes_x.erase(it);
-	}
-
-	double Enxy = computePosterior(lHeat, pHeat);
-	double fullPosteriorRatio = Exy - Enxy;
-
-	double loopHR = 0, stepHR, Exny, Enxny;
-
-	// updates to secondary variable(s) (y -> ny)
-	for(int ii = 0; ii < n_steps; ii++) {
-
-		Proposal* p = dragged_proposals[0]; //TODO update for scenario w/more than 1
-
-		p->prepareProposal();
-		stepHR = p->doProposal();
-
-		if(!RbMath::isAComputableNumber(loopHR)) {
-			if(RbMath::isNan(loopHR)) std::cerr << "Warning: using proposal " << p->getProposalName() << " resulted in HastingsRatio = NaN";
-			rejectProposal(p);
-			continue;
-		}
-
-		Enxny = computePosterior(lHeat, pHeat);
-
-		// restore value of x to calculate Exny
-		restoreNodesFromSaved(false);
-		Exny = computePosterior(lHeat, pHeat);
-
-		// restore value of nx
-		restoreNodesFromSaved(false);
-		double acceptanceRatio = (Enxy - Enxny)*(ii+1)/(n_steps+1) - (Exy - Exny)*ii/(n_steps+1) + stepHR;
-		if(acceptanceRatio >= 0) {
-			acceptProposal(p);
-			loopHR += stepHR;
-			Exy = Exny;
-			Enxy = Enxny;
-		}
-		else {
-			rejectProposal(p);
-		}
-
-		fullPosteriorRatio += Exy - Enxy;
-	}
-
-	double fullAcceptanceRatio = (fullPosteriorRatio + loopHR + mainHR)/(n_steps+1);
-	if(fullAcceptanceRatio >= 0) {
+	double fullAcceptanceRatio = performMove(lHeat, pHeat);
+	if(RbMath::isAComputableNumber(fullAcceptanceRatio) && fullAcceptanceRatio >= 0) {
 		acceptProposal(&getMainProposal());
 		setNumberAcceptedTotal(getNumberAcceptedTotal() + 1);
 		setNumberAcceptedCurrentPeriod(getNumberAcceptedCurrentPeriod() + 1);
@@ -325,6 +182,84 @@ void CorrelatedMHMove::acceptProposal(Proposal* p) {
 		n->keep();
 	}
 	p->cleanProposal();
+}
+
+double CorrelatedMHMove::performMove(double lHeat, double pHeat,
+		double prHeat) {
+	// copy state from before main proposal
+		saved_nodes.clear();
+		saved_nodes_x.clear();
+		for(DagNode* n : getDagNodes()) {
+			DagNode* copy = (n->clone());
+			saved_nodes.push_back(copy);
+			saved_nodes_x.push_back(copy);
+		}
+
+		double Exy = computePosterior(lHeat, pHeat, prHeat);
+
+		// update to primary variable (x -> nx)
+		getMainProposal().prepareProposal();
+		double mainHR = getMainProposal().doProposal();
+
+		if(!RbMath::isAComputableNumber(mainHR)) {
+			if(RbMath::isNan(mainHR)) std::cerr << "Warning: using proposal " << getMainProposal().getProposalName() << " resulted in HastingsRatio = NaN";
+			rejectProposal(&getMainProposal());
+			return mainHR;
+		}
+
+		// only nodes that have actually been changed by the proposal need to be saved
+		for(DagNode* n : getDagNodes()) {
+			std::string nm = n->getName();
+			auto it = std::find_if(saved_nodes_x.begin(), saved_nodes_x.end(), [&](DagNode* const obj){
+				return (obj -> getName() == nm);
+			} );
+			if(it == saved_nodes_x.end()) throw new RbException("Error, no saved matching node found for node " + nm );
+			if(n->getValueAsString() == (*it)->getValueAsString()) saved_nodes_x.erase(it);
+		}
+
+		double Enxy = computePosterior(lHeat, pHeat, prHeat);
+		double fullPosteriorRatio = Exy - Enxy;
+
+		double loopHR = 0, stepHR, Exny, Enxny;
+
+		// updates to secondary variable(s) (y -> ny)
+		for(int ii = 0; ii < n_steps; ii++) {
+
+			Proposal* p = dragged_proposals[0]; //TODO update for scenario w/more than 1
+
+			p->prepareProposal();
+			stepHR = p->doProposal();
+
+			if(!RbMath::isAComputableNumber(loopHR)) {
+				if(RbMath::isNan(loopHR)) std::cerr << "Warning: using proposal " << p->getProposalName() << " resulted in HastingsRatio = NaN";
+				rejectProposal(p);
+				continue;
+			}
+
+			Enxny = computePosterior(lHeat, pHeat, prHeat);
+
+			// restore value of x to calculate Exny
+			restoreNodesFromSaved(false);
+			Exny = computePosterior(lHeat, pHeat, prHeat);
+
+			// restore value of nx
+			restoreNodesFromSaved(false);
+			double acceptanceRatio = (Enxy - Enxny)*(ii+1)/(n_steps+1) - (Exy - Exny)*ii/(n_steps+1) + stepHR;
+			if(acceptanceRatio >= 0|| GLOBAL_RNG -> uniform01() < exp(acceptanceRatio)) {
+				acceptProposal(p);
+				loopHR += stepHR;
+				Exy = Exny;
+				Enxy = Enxny;
+			}
+			else {
+				rejectProposal(p);
+			}
+
+			fullPosteriorRatio += Exy - Enxy;
+		}
+
+		double fullAcceptanceRatio = (fullPosteriorRatio + loopHR + mainHR)/(n_steps+1);
+		return fullAcceptanceRatio;
 }
 
 void CorrelatedMHMove::restoreNodesFromSaved(bool all) {

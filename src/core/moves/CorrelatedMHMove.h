@@ -29,6 +29,7 @@ public:
 protected:
 	void performMcmcMove(double prHeat, double lHeat, double pHeat);
     void performHillClimbingMove(double lHeat, double pHeat);
+    double performMove(double lHeat, double pHeat, double prHeat = 1);
     double computePosteriorRatio(double lHeat, double pHeat, double prHeat = 1);
     double computePosterior(double lHeat, double pHeat, double prHeat = 1);
     void rejectProposal(Proposal* p);

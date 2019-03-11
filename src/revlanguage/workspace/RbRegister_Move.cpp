@@ -86,6 +86,9 @@
 /* Moves on probability values */
 #include "Move_BetaProbability.h"
 
+/* Compound Moves */
+#include "MoveCorrelatedMH.h"
+
 /* Compound Moves on Real Values */
 #include "Move_AVMVN.h"
 #include "Move_UpDownSlide.h"
@@ -262,6 +265,7 @@ void RevLanguage::Workspace::initializeMoveGlobalWorkspace(void)
         addType( new Move_UpDownTreeScale() );
         addType( new Move_UpDownSlide() );
         addType( new Move_UpDownSlideBactrian() );
+        addType( new Move_CorrelatedMH() );
 
 		// compound moves on real values
         addType( new Move_LevyJumpSum() );

@@ -24,7 +24,7 @@ CorrelatedMHMove::CorrelatedMHMove(Proposal* main, std::vector<Proposal*> dragge
 				MetropolisHastingsMove(main,w,autoTune),
 				dragged_proposals(dragged), n_steps(ns) {
 
-	if(dragged_proposals.size() < 1) throw new RbException("Trying to initialize correlated operator without dragged proposals.");
+	if(dragged_proposals.size() < 1) throw RbException("Trying to initialize correlated operator without dragged proposals.");
 	for(Proposal* p : dragged_proposals) {
 		p->setMove(this);
 	}
@@ -213,7 +213,7 @@ double CorrelatedMHMove::performMove(double lHeat, double pHeat,
 			auto it = std::find_if(saved_nodes_x.begin(), saved_nodes_x.end(), [&](DagNode* const obj){
 				return (obj -> getName() == nm);
 			} );
-			if(it == saved_nodes_x.end()) throw new RbException("Error, no saved matching node found for node " + nm );
+			if(it == saved_nodes_x.end()) throw RbException("Error, no saved matching node found for node " + nm );
 			if(n->getValueAsString() == (*it)->getValueAsString()) saved_nodes_x.erase(it);
 		}
 
@@ -273,7 +273,7 @@ void CorrelatedMHMove::restoreNodesFromSaved(bool all) {
 		auto it = std::find_if(nodes.begin(), nodes.end(), [&](DagNode* const obj){
 			return (obj -> getName() == nm);
 		} );
-		if(it == nodes.end()) throw new RbException("Error, no matching node found for saved node " + nm );
+		if(it == nodes.end()) throw RbException("Error, no matching node found for saved node " + nm );
 
 		std::string value = n->getValueAsString();
 		n->setValueFromString((*it)->getValueAsString());

@@ -57,3 +57,8 @@ double RandomNumberGenerator::uniform01(void)
 	// Returns a pseudo-random number between 0 and 1.
     return last_u;
 }
+
+int RandomNumberGenerator::uniformInt(int max, int min) {
+    double x = zeroone()*(max-min);
+    return min + static_cast<int>(std::floor(x));
+}

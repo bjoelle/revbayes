@@ -246,7 +246,7 @@ double CorrelatedMHMove::performMove(double lHeat, double pHeat,
         std::string nm = n->getName();
         auto it = std::find_if(saved_nodes_x.begin(), saved_nodes_x.end(), [&](DagNode* const obj){
                 return (obj -> getName() == nm);
-    } );
+                } );
         if(it == saved_nodes_x.end()) throw RbException("Error, no saved matching node found for node " + nm );
         if(n->getValueAsString() == (*it)->getValueAsString()) saved_nodes_x.erase(it);
     }
@@ -257,9 +257,10 @@ double CorrelatedMHMove::performMove(double lHeat, double pHeat,
     double loopHR = 0, stepHR, Exny, Enxny;
 
     // updates to secondary variable(s) (y -> ny)
-    for(int ii = 0; ii < n_steps; ii++) {
+    for(unsigned int ii = 0; ii < n_steps; ii++) {
 
-        Proposal* p = dragged_proposals[0]; //TODO update for scenario w/more than 1
+        int i = GLOBAL_RNG->uniformInt(dragged_proposals.size());
+        Proposal* p = dragged_proposals[i];
 
         p->prepareProposal();
         stepHR = p->doProposal();
@@ -306,7 +307,7 @@ void CorrelatedMHMove::restoreNodesFromSaved(bool all) {
         std::string nm = n->getName();
         auto it = std::find_if(nodes.begin(), nodes.end(), [&](DagNode* const obj){
                 return (obj -> getName() == nm);
-    } );
+                } );
         if(it == nodes.end()) throw RbException("Error, no matching node found for saved node " + nm );
 
         std::string value = n->getValueAsString();

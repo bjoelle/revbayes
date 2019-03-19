@@ -16,6 +16,7 @@ namespace RevBayesCore {
         unsigned int                                getSeed(void) const;                                    //!< Get the seed values
         void                                        setSeed(unsigned int s);                                //!< Set the seeds of the RNG
         double                                      uniform01(void);                                        //!< Get a random [0,1) var
+        int uniformInt(int max, int min = 0);
 
     private:
         

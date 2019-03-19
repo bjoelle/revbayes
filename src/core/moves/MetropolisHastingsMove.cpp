@@ -57,9 +57,8 @@ MetropolisHastingsMove::MetropolisHastingsMove(const MetropolisHastingsMove &m) 
  * Basic destructor doing nothing.
  */
 MetropolisHastingsMove::~MetropolisHastingsMove( void )
-{
-    
-    delete proposal;
+{   
+    //delete proposal;
 }
 
 

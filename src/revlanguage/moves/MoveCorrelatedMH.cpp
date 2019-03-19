@@ -38,12 +38,14 @@ const TypeSpec& Move_CorrelatedMH::getTypeSpec(void) const {
 }
 
 std::string Move_CorrelatedMH::getMoveName(void) const {
-	return "Correlated_MH";
+	return "CorrelatedMH";
 }
 
 void Move_CorrelatedMH::constructInternalObject(void) {
+    delete value;
+
 	double w = static_cast<const RealPos &>( weight->getRevObject() ).getValue();
-	int ns = static_cast<const Integer &>( n_steps->getRevObject() ).getValue();
+    unsigned int ns = static_cast<const Integer &>( n_steps->getRevObject() ).getValue();
 
 	RevBayesCore::Move* main = &static_cast<const Move &>( main_move->getRevObject() ).getValue();
 	RevBayesCore::Proposal* main_proposal;
@@ -57,7 +59,8 @@ void Move_CorrelatedMH::constructInternalObject(void) {
 	for(auto it = dragged.begin(); it != dragged.end(); ++it) {
 		RevBayesCore::Move* core_move = &(it->getValue());
 		if(RevBayesCore::MetropolisHastingsMove* core_mh = dynamic_cast<RevBayesCore::MetropolisHastingsMove*>(core_move)) {
-			dragged_proposals.push_back(&(core_mh->getProposal()));
+            RevBayesCore::Proposal* dp = (&(core_mh->getProposal()));
+            dragged_proposals.push_back(dp);
 		}
 		else throw RbException("Trying to initialize a correlated MH move with a non-MH move " + core_move->getMoveName());
 	}
@@ -71,12 +74,12 @@ const MemberRules& Move_CorrelatedMH::getParameterRules(void) const {
 
 	if(!rules_set) {
 
-		memberRules.push_back( new ArgumentRule( "nsteps", Integer::getClassTypeSpec(), "The number of secondary steps to use in each proposal.",
-				ArgumentRule::BY_VALUE, ArgumentRule::ANY ) );
-		memberRules.push_back( new ArgumentRule( "main_move", Move::getClassTypeSpec(), "The main move to use in the proposal.",
+		memberRules.push_back( new ArgumentRule( "main", Move::getClassTypeSpec(), "The main move to use in the proposal.",
 				ArgumentRule::BY_REFERENCE, ArgumentRule::ANY ) );
-		memberRules.push_back( new ArgumentRule( "dragged_moves", WorkspaceVector<Move>::getClassTypeSpec(),
+		memberRules.push_back( new ArgumentRule( "dragged", WorkspaceVector<Move>::getClassTypeSpec(),
 				"The vector of dragged move(s) to use in the proposal.", ArgumentRule::BY_REFERENCE, ArgumentRule::ANY ) );
+		memberRules.push_back( new ArgumentRule( "nsteps", Integer::getClassTypeSpec(), "The number of secondary steps to use in each proposal.",
+						ArgumentRule::BY_VALUE, ArgumentRule::ANY ) );
 
 		/* Inherit weight from Move, put it after variable */
 		const MemberRules& inheritedRules = Move::getParameterRules();

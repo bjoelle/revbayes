@@ -20,6 +20,9 @@ public:
 	CorrelatedMHMove(const CorrelatedMHMove &m);
 	virtual ~CorrelatedMHMove();
 
+    CorrelatedMHMove& operator=(const CorrelatedMHMove &m); //!< Assignment operator
+    virtual CorrelatedMHMove* clone(void) const;
+
 	Proposal& getMainProposal();
 	std::vector<Proposal*> getDraggedProposals();
 	unsigned int getNSteps();
@@ -35,6 +38,9 @@ protected:
     void rejectProposal(Proposal* p);
     void acceptProposal(Proposal* p);
     void restoreNodesFromSaved(bool all = true);
+
+    virtual void swapNodeInternal(DagNode *oldN, DagNode *newN);  //!< Swap the pointers to the variable on which the move works on.
+
 
 private:
 	std::vector<Proposal*> dragged_proposals;

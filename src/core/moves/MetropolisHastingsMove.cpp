@@ -58,7 +58,7 @@ MetropolisHastingsMove::MetropolisHastingsMove(const MetropolisHastingsMove &m) 
  */
 MetropolisHastingsMove::~MetropolisHastingsMove( void )
 {   
-    //delete proposal;
+    delete proposal;
 }
 
 

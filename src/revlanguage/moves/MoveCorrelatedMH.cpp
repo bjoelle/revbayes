@@ -50,7 +50,7 @@ void Move_CorrelatedMH::constructInternalObject(void) {
 	RevBayesCore::Move* main = &static_cast<const Move &>( main_move->getRevObject() ).getValue();
 	RevBayesCore::Proposal* main_proposal;
 	if(RevBayesCore::MetropolisHastingsMove* main_mh = dynamic_cast<RevBayesCore::MetropolisHastingsMove*>(main)) {
-		main_proposal = (&(main_mh->getProposal()));
+        main_proposal = main_mh->getProposal().clone();
 	}
 	else throw RbException("Trying to initialize a correlated MH move with a non-MH move " + main->getMoveName());
 
@@ -59,7 +59,7 @@ void Move_CorrelatedMH::constructInternalObject(void) {
 	for(auto it = dragged.begin(); it != dragged.end(); ++it) {
 		RevBayesCore::Move* core_move = &(it->getValue());
 		if(RevBayesCore::MetropolisHastingsMove* core_mh = dynamic_cast<RevBayesCore::MetropolisHastingsMove*>(core_move)) {
-            RevBayesCore::Proposal* dp = (&(core_mh->getProposal()));
+            RevBayesCore::Proposal* dp = core_mh->getProposal().clone();
             dragged_proposals.push_back(dp);
 		}
 		else throw RbException("Trying to initialize a correlated MH move with a non-MH move " + core_move->getMoveName());

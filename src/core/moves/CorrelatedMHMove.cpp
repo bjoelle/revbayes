@@ -252,7 +252,7 @@ double CorrelatedMHMove::performMove(double lHeat, double pHeat,
     }
 
     double Enxy = computePosterior(lHeat, pHeat, prHeat);
-    double fullPosteriorRatio = Exy - Enxy;
+    double fullPosteriorRatio = Enxy - Exy;
 
     double loopHR = 0, stepHR, Exny, Enxny;
 
@@ -279,7 +279,7 @@ double CorrelatedMHMove::performMove(double lHeat, double pHeat,
 
         // restore value of nx
         restoreNodesFromSaved(false);
-        double acceptanceRatio = (Enxy - Enxny)*(ii+1)/(n_steps+1) - (Exy - Exny)*ii/(n_steps+1) + stepHR;
+        double acceptanceRatio = (Enxny - Exny)*(ii+1)/(n_steps+1) - (Exny - Exy)*ii/(n_steps+1) + stepHR;
         if(acceptanceRatio >= 0|| GLOBAL_RNG -> uniform01() < exp(acceptanceRatio)) {
             acceptProposal(p);
             loopHR += stepHR;
@@ -290,7 +290,7 @@ double CorrelatedMHMove::performMove(double lHeat, double pHeat,
             rejectProposal(p);
         }
 
-        fullPosteriorRatio += Exy - Enxy;
+        fullPosteriorRatio += Enxy - Exy;
     }
 
     double fullAcceptanceRatio = (fullPosteriorRatio + loopHR + mainHR)/(n_steps+1);

@@ -26,18 +26,23 @@ public:
 	Proposal& getMainProposal();
 	std::vector<Proposal*> getDraggedProposals();
 	unsigned int getNSteps();
+
 	double getMoveTuningParameter() const;
 	void setMoveTuningParameter(double tp);
 
 protected:
 	void performMcmcMove(double prHeat, double lHeat, double pHeat);
     void performHillClimbingMove(double lHeat, double pHeat);
+
     double performMove(double lHeat, double pHeat, double prHeat = 1);
     double computePosteriorRatio(double lHeat, double pHeat, double prHeat = 1);
     double computePosterior(double lHeat, double pHeat, double prHeat = 1);
+
     void rejectProposal(Proposal* p);
     void acceptProposal(Proposal* p);
+
     void restoreNodesFromSaved(bool all = true);
+    void clearSaved();
 
     virtual void swapNodeInternal(DagNode *oldN, DagNode *newN);  //!< Swap the pointers to the variable on which the move works on.
 

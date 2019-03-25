@@ -56,7 +56,11 @@ CorrelatedMHMove::CorrelatedMHMove(const CorrelatedMHMove& m) :
     }
 }
 
-CorrelatedMHMove::~CorrelatedMHMove() {}
+CorrelatedMHMove::~CorrelatedMHMove() {
+    for (Proposal* p : dragged_proposals) {
+        delete p;
+    }
+}
 
 CorrelatedMHMove &CorrelatedMHMove::operator=(const CorrelatedMHMove &m) {
     if ( this != &m ) {
@@ -221,8 +225,6 @@ void CorrelatedMHMove::acceptProposal(Proposal* p) {
 double CorrelatedMHMove::performMove(double lHeat, double pHeat,
                                      double prHeat) {
     // copy state from before main proposal
-    saved_nodes.clear();
-    saved_nodes_x.clear();
     for(DagNode* n : getDagNodes()) {
         DagNode* copy = (n->clone());
         saved_nodes.push_back(copy);
@@ -238,6 +240,8 @@ double CorrelatedMHMove::performMove(double lHeat, double pHeat,
     if(!RbMath::isAComputableNumber(mainHR)) {
         if(RbMath::isNan(mainHR)) std::cerr << "Warning: using proposal " << getMainProposal().getProposalName() << " resulted in HastingsRatio = NaN";
         restoreNodesFromSaved(false);
+        // clear saved copies
+        clearSaved();
         return mainHR;
     }
 
@@ -293,6 +297,9 @@ double CorrelatedMHMove::performMove(double lHeat, double pHeat,
         fullPosteriorRatio += Enxy - Exy;
     }
 
+    // clear saved copies
+    clearSaved();
+
     double fullAcceptanceRatio = (fullPosteriorRatio + loopHR + mainHR)/(n_steps+1);
     return fullAcceptanceRatio;
 }
@@ -303,7 +310,7 @@ void CorrelatedMHMove::restoreNodesFromSaved(bool all) {
     if (all) toRestore = &saved_nodes;
     else toRestore = &saved_nodes_x;
 
-    for(DagNode* n : saved_nodes) {
+    for(DagNode* n : *toRestore) {
         std::string nm = n->getName();
         auto it = std::find_if(nodes.begin(), nodes.end(), [&](DagNode* const obj){
                 return (obj -> getName() == nm);
@@ -314,6 +321,14 @@ void CorrelatedMHMove::restoreNodesFromSaved(bool all) {
         n->setValueFromString((*it)->getValueAsString());
         (*it)->setValueFromString(value);
     }
+}
+
+void CorrelatedMHMove::clearSaved() {
+    for(DagNode* n : saved_nodes) {
+        delete n;
+    }
+    saved_nodes.clear();
+    saved_nodes_x.clear();
 }
 
 void CorrelatedMHMove::swapNodeInternal(DagNode *oldN, DagNode *newN) {

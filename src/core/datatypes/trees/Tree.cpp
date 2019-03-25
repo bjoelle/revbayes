@@ -1118,6 +1118,7 @@ void Tree::initFromString(const std::string &s)
 
     *this = *tree;
 
+    delete bl_tree;
     delete tree;
 }
 

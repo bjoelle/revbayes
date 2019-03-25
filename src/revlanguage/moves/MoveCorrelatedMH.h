@@ -19,13 +19,13 @@ public:
 	Move_CorrelatedMH();
 	virtual ~Move_CorrelatedMH();
 
-	virtual Move_CorrelatedMH* clone(void) const;  //!< Clone object
-	static const std::string& getClassType(void);  //!< Get RevCore type
-    static const TypeSpec& getClassTypeSpec(void);  //!< Get class type spec
-	virtual const TypeSpec& getTypeSpec(void) const;  //!< Get language type of the object
+    virtual Move_CorrelatedMH* clone(void) const;  //!< Clone (deep copy)
+    static const std::string& getClassType(void);  //!< Get the name of the class
+    static const TypeSpec& getClassTypeSpec(void);  //!< Get the names of the class and parents
+    virtual const TypeSpec& getTypeSpec(void) const;  //!< Get the names of the class and parents
 	std::string getMoveName(void) const;  //!< Get the name used for the constructor function in Rev.
 
-	void constructInternalObject(void);  //!< We construct a new internal Move.
+    void constructInternalObject(void);  //!< Construct a new internal CorrelatedMHMove.
 	const MemberRules& getParameterRules(void) const;   //!< Get member rules (const)
 	virtual void printValue(std::ostream& o) const;  //!< Print value (for user)
 

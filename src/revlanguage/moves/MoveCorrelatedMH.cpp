@@ -81,7 +81,7 @@ const MemberRules& Move_CorrelatedMH::getParameterRules(void) const {
 		memberRules.push_back( new ArgumentRule( "nsteps", Integer::getClassTypeSpec(), "The number of secondary steps to use in each proposal.",
 						ArgumentRule::BY_VALUE, ArgumentRule::ANY ) );
 
-		/* Inherit weight from Move, put it after variable */
+        /* Add inherited parameter rules */
 		const MemberRules& inheritedRules = Move::getParameterRules();
 		memberRules.insert( memberRules.end(), inheritedRules.begin(), inheritedRules.end() );
 

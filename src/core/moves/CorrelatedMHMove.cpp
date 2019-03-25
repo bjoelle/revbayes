@@ -132,44 +132,6 @@ void CorrelatedMHMove::performHillClimbingMove(double lHeat, double pHeat) {
     }
 }
 
-double CorrelatedMHMove::computePosteriorRatio(double lHeat, double pHeat, double prHeat) {
-
-    double ln_likelihood_ratio = 0, ln_prior_ratio = 0;
-
-    // Identify nodes that proposal touches
-    const std::vector<DagNode*> touched_nodes = getDagNodes();
-    const RbOrderedSet<DagNode*> &affected_nodes = getAffectedNodes();
-
-    // first we touch all the nodes
-    // that will set the flags for recomputation
-    for (DagNode* the_node : touched_nodes) {
-        // flag for recomputation
-        the_node->touch();
-    }
-
-    // compute the probability of the current value for each node
-    for (DagNode* the_node : touched_nodes) {
-
-        if ( the_node->isClamped() ) ln_likelihood_ratio += the_node->getLnProbabilityRatio();
-        else ln_prior_ratio += the_node->getLnProbabilityRatio();
-
-        if ( !RbMath::isAComputableNumber(ln_prior_ratio) || !RbMath::isAComputableNumber(ln_likelihood_ratio) ) break;
-    }
-
-    // then we recompute the probability for all the affected nodes
-    for (DagNode* the_node : affected_nodes) {
-
-        if ( the_node->isClamped() ) ln_likelihood_ratio += the_node->getLnProbabilityRatio();
-        else ln_prior_ratio += the_node->getLnProbabilityRatio();
-
-        if ( !RbMath::isAComputableNumber(ln_prior_ratio) || !RbMath::isAComputableNumber(ln_likelihood_ratio) ) break;
-
-    }
-
-    double ln_posterior_ratio = pHeat * (lHeat * ln_likelihood_ratio + prHeat * ln_prior_ratio);
-    return ln_posterior_ratio;
-}
-
 double CorrelatedMHMove::computePosterior(double lHeat, double pHeat, double prHeat) {
 
     double ln_likelihood = 0, ln_prior = 0;
@@ -236,13 +198,16 @@ double CorrelatedMHMove::performMove(double lHeat, double pHeat,
     // update to primary variable (x -> nx)
     getMainProposal().prepareProposal();
     double mainHR = getMainProposal().doProposal();
+    double Enxy = computePosterior(lHeat, pHeat, prHeat);
+    double fullPosteriorRatio = Enxy - Exy;
 
-    if(!RbMath::isAComputableNumber(mainHR)) {
+    if(!RbMath::isAComputableNumber(mainHR) || !RbMath::isAComputableNumber(fullPosteriorRatio)) {
         if(RbMath::isNan(mainHR)) std::cerr << "Warning: using proposal " << getMainProposal().getProposalName() << " resulted in HastingsRatio = NaN";
+        if(RbMath::isNan(fullPosteriorRatio)) std::cerr << "Warning: using proposal " << getMainProposal().getProposalName() << " resulted in Posterior = NaN";
         restoreNodesFromSaved(false);
         // clear saved copies
         clearSaved();
-        return mainHR;
+        return mainHR + fullPosteriorRatio;
     }
 
     // only nodes that have actually been changed by the proposal need to be saved
@@ -254,9 +219,6 @@ double CorrelatedMHMove::performMove(double lHeat, double pHeat,
         if(it == saved_nodes_x.end()) throw RbException("Error, no saved matching node found for node " + nm );
         if(n->getValueAsString() == (*it)->getValueAsString()) saved_nodes_x.erase(it);
     }
-
-    double Enxy = computePosterior(lHeat, pHeat, prHeat);
-    double fullPosteriorRatio = Enxy - Exy;
 
     double loopHR = 0, stepHR, Exny, Enxny;
 
@@ -283,7 +245,8 @@ double CorrelatedMHMove::performMove(double lHeat, double pHeat,
 
         // restore value of nx
         restoreNodesFromSaved(false);
-        double acceptanceRatio = (Enxny - Exny)*(ii+1)/(n_steps+1) - (Exny - Exy)*ii/(n_steps+1) + stepHR;
+        double acceptanceRatio = (Enxny - Exny)*(ii+1)/(n_steps + 1) +
+                (Exny - Exy)*(1 - (ii + 1)/(n_steps + 1)) + stepHR;
         if(acceptanceRatio >= 0|| GLOBAL_RNG -> uniform01() < exp(acceptanceRatio)) {
             acceptProposal(p);
             loopHR += stepHR;

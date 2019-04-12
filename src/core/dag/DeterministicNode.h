@@ -32,6 +32,7 @@ namespace RevBayesCore {
         void                                                setMcmcMode(bool tf);                                                       //!< Set the modus of the DAG node to MCMC mode.
         void                                                setValueFromFile(const std::string &dir);                                   //!< Set value from string.
         void                                                setValueFromString(const std::string &v);                                   //!< Set value from string.
+        virtual void copyValueFromNode(DagNode* n);
 
         // Parent DAG nodes management functions
         virtual std::vector<const DagNode*>                 getParents(void) const;                                                     //!< Get the set of parents
@@ -417,6 +418,11 @@ void RevBayesCore::DeterministicNode<valueType>::setValueFromString(const std::s
 {
 
     throw RbException("Cannot set a deterministic node from a string.");
+}
+
+template<class valueType>
+void RevBayesCore::DeterministicNode<valueType>::copyValueFromNode(DagNode *n) {
+    throw RbException("Cannot set a deterministic node from another node.");
 }
 
 

@@ -39,7 +39,7 @@ namespace RevBayesCore {
         virtual valueType&                                  getValue(void) = 0;
         virtual const valueType&                            getValue(void) const = 0;
         virtual void                                        setValueFromString(const std::string &v) = 0;                                                               //!< Set value from string.
-
+        virtual void copyValueFromNode(DagNode* n) = 0;
         
     };
     
@@ -167,7 +167,6 @@ template<class valueType>
 RevBayesCore::TypedDagNode<valueType>::~TypedDagNode( void )
 {
 }
-
 
 template<class valueType>
 RevBayesCore::AbstractTrace* RevBayesCore::TypedDagNode<valueType>::createTraceObject(void) const

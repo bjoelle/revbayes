@@ -6,15 +6,15 @@
 #include "DagNodeMap.h"
 
 namespace RevBayesCore {
-    
+
     template<class valueType>
     class ConstantNode : public TypedDagNode<valueType> {
-        
+
     public:
         ConstantNode(const std::string &n, valueType *v);
         ConstantNode(const ConstantNode<valueType> &c);                                                                                 //!< Copy constructor
         virtual                                            ~ConstantNode(void);                                                         //!< Virtual destructor
-        
+
         void                                                bootstrap(void);                                                            //!< Bootstrap the current value of the node (applies only to stochastic nodes)
         virtual ConstantNode<valueType>*                    clone(void) const;                                                          //!< Create a clone of this node.
         DagNode*                                            cloneDAG(DagNodeMap &nodesMap, std::map<std::string, const DagNode* > &names) const; //!< Clone the entire DAG which is connected to this node
@@ -29,20 +29,21 @@ namespace RevBayesCore {
         void                                                setValue(const valueType &v);
         void                                                setValueFromFile(const std::string &dir);                                   //!< Set value from string.
         void                                                setValueFromString(const std::string &v);                                   //!< Set value from string.
+        virtual void copyValueFromNode(DagNode *n);
 
     protected:
         void                                                getAffected(RbOrderedSet<DagNode *>& affected, DagNode* affecter);          //!< Mark and get affected nodes
         void                                                keepMe(DagNode* affecter);                                                  //!< Keep value of this and affected nodes
         void                                                restoreMe(DagNode *restorer);                                               //!< Restore value of this nodes
         void                                                touchMe(DagNode *toucher, bool touchAll);                                   //!< Tell affected nodes value is reset
-        
+
     private:
         // members
         valueType*                                          value;
-        
+
     };
-    
-    
+
+
 }
 
 
@@ -275,6 +276,16 @@ template<class valueType>
 void RevBayesCore::ConstantNode<valueType>::touchMe( DagNode * /*toucher*/, bool /*touchAll*/ )
 {
     // nothing to do
+}
+
+template<class valueType>
+void RevBayesCore::ConstantNode<valueType>::copyValueFromNode(DagNode *n) {
+    if(RevBayesCore::ConstantNode<valueType>* cn = dynamic_cast<RevBayesCore::ConstantNode<valueType>*>(n)) {
+        setValue( *Cloner<valueType, IsDerivedFrom<valueType, Cloneable>::Is >::createClone( cn->getValue() ) );
+    }
+    else {
+        throw RbException("Cannot copy the value of constant nodes");
+    }
 }
 
 #endif

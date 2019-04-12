@@ -46,6 +46,7 @@ namespace RevLanguage {
         void                                    setValueFromFile(const std::string &fn);                           //!< Set value from string.
         void                                    setValueFromString(const std::string &v);                           //!< Set value from string.
         void                                    update(void);                                                       //!< Update current value
+        void copyValueFromNode(RevBayesCore::DagNode* n);
         
         // Parent DAG nodes management functions
         std::vector<const RevBayesCore::DagNode*>  getParents(void) const;                                                                     //!< Get the set of parents
@@ -523,6 +524,11 @@ void UserFunctionNode<rlType>::update()
     
     // We are clean!
     this->touched = false;
+}
+
+template<typename rlType>
+void UserFunctionNode<rlType>::copyValueFromNode(RevBayesCore::DagNode *n) {
+    throw RbException("Cannot set a user-function node from another node.");
 }
 
 

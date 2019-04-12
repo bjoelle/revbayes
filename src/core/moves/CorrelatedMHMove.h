@@ -37,11 +37,13 @@ protected:
     double performMove(double lHeat, double pHeat, double prHeat = 1);  //!< Propose correlated move
     double computePosterior(double lHeat, double pHeat, double prHeat = 1);  //!< Compute full posterior of current DAG
 
-    void rejectProposal(Proposal* p);  //!< Reject proposal and update nodes
-    void acceptProposal(Proposal* p);  //!< Accept proposal and update nodes
-
-    void restoreNodesFromSaved(bool all = true);  //!< Set the dependent nodes to the saved values
+    void acceptMainProposal();  //!< Accept proposal and keep all nodes
+    void rejectMainProposal();  //!< Reject proposal and restore all nodes
+    void switchXNodeValues();  //!< Set X nodes to the saved values and vice-versa
+    void saveNodes(); //!< Save all node values
+    void restoreNodes(); //!< Restore all node values
     void clearSaved();  //!< Clear vectors of saved nodes
+
     virtual void swapNodeInternal(DagNode *oldN, DagNode *newN);  //!< Swap the pointers to the variable on which the move works on.
 
 private:

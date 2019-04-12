@@ -46,7 +46,8 @@ namespace RevBayesCore {
         void                                                setValueFromFile(const std::string &dir);                                   //!< Set value from string.
         void                                                setValueFromString(const std::string &v);                                   //!< Set value from string.
         void                                                unclamp(void);                                                              //!< Unclamp the variable
-        
+        virtual void copyValueFromNode(DagNode* n);
+
         // Parent DAG nodes management functions
         std::vector<const DagNode*>                         getParents(void) const;                                                     //!< Get the set of parents
         void                                                swapParent(const DagNode *oldP, const DagNode *newP);                       //!< Exchange the parent (distribution parameter)
@@ -628,6 +629,17 @@ template<class valueType>
 void RevBayesCore::StochasticNode<valueType>::unclamp( void )
 {
     clamped = false;
+}
+
+template<class valueType>
+void RevBayesCore::StochasticNode<valueType>::copyValueFromNode(RevBayesCore::DagNode *n) {
+    if(RevBayesCore::StochasticNode<valueType>* sn = dynamic_cast<RevBayesCore::StochasticNode<valueType>*>(n)) {
+        delete distribution;
+        distribution = sn->getDistribution().clone();
+    }
+    else {
+        throw RbException("Cannot copy the value of the node, node types do not match");
+    }
 }
 
 

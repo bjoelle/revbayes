@@ -108,13 +108,12 @@ void CorrelatedMHMove::performMcmcMove(double prHeat, double lHeat,
     double fullAcceptanceRatio = performMove(lHeat, pHeat, prHeat);
     if(RbMath::isAComputableNumber(fullAcceptanceRatio) &&
             (fullAcceptanceRatio >= 0 || GLOBAL_RNG -> uniform01() < exp(fullAcceptanceRatio))) {
-        acceptProposal(&getMainProposal());
+        acceptMainProposal();
         setNumberAcceptedTotal(getNumberAcceptedTotal() + 1);
         setNumberAcceptedCurrentPeriod(getNumberAcceptedCurrentPeriod() + 1);
     }
     else {
-        //getMainProposal().undoProposal();
-        restoreNodesFromSaved(true);
+        rejectMainProposal();
     }
 }
 
@@ -122,13 +121,12 @@ void CorrelatedMHMove::performHillClimbingMove(double lHeat, double pHeat) {
 
     double fullAcceptanceRatio = performMove(lHeat, pHeat);
     if(RbMath::isAComputableNumber(fullAcceptanceRatio) && fullAcceptanceRatio >= 0) {
-        acceptProposal(&getMainProposal());
+        acceptMainProposal();
         setNumberAcceptedTotal(getNumberAcceptedTotal() + 1);
         setNumberAcceptedCurrentPeriod(getNumberAcceptedCurrentPeriod() + 1);
     }
     else {
-        //getMainProposal().undoProposal();
-        restoreNodesFromSaved(true);
+        rejectMainProposal();
     }
 }
 
@@ -166,33 +164,31 @@ double CorrelatedMHMove::computePosterior(double lHeat, double pHeat, double prH
 
     }
 
-    double ln_posterior_ratio = pHeat * (lHeat * ln_likelihood + prHeat * ln_prior);
-    return ln_posterior_ratio;
+    double ln_posterior = pHeat * (lHeat * ln_likelihood + prHeat * ln_prior);
+    return ln_posterior;
 }
 
-void CorrelatedMHMove::rejectProposal(Proposal* p) {
-    p->undoProposal();
+void CorrelatedMHMove::rejectMainProposal() {
+    getMainProposal().cleanProposal();
+    restoreNodes();
     for(DagNode* n : getDagNodes()) {
         n->restore();
     }
+    clearSaved();
 }
 
-void CorrelatedMHMove::acceptProposal(Proposal* p) {
+void CorrelatedMHMove::acceptMainProposal() {
+    getMainProposal().cleanProposal();
     for(DagNode* n : getDagNodes()) {
         n->keep();
     }
-    p->cleanProposal();
+    clearSaved();
 }
 
 double CorrelatedMHMove::performMove(double lHeat, double pHeat,
                                      double prHeat) {
-    // copy state from before main proposal
-    for(DagNode* n : getDagNodes()) {
-        DagNode* copy = (n->clone());
-        saved_nodes.push_back(copy);
-        saved_nodes_x.push_back(copy);
-    }
 
+    saveNodes();
     double Exy = computePosterior(lHeat, pHeat, prHeat);
 
     // update to primary variable (x -> nx)
@@ -204,9 +200,6 @@ double CorrelatedMHMove::performMove(double lHeat, double pHeat,
     if(!RbMath::isAComputableNumber(mainHR) || !RbMath::isAComputableNumber(fullPosteriorRatio)) {
         if(RbMath::isNan(mainHR)) std::cerr << "Warning: using proposal " << getMainProposal().getProposalName() << " resulted in HastingsRatio = NaN";
         if(RbMath::isNan(fullPosteriorRatio)) std::cerr << "Warning: using proposal " << getMainProposal().getProposalName() << " resulted in Posterior = NaN";
-        restoreNodesFromSaved(false);
-        // clear saved copies
-        clearSaved();
         return mainHR + fullPosteriorRatio;
     }
 
@@ -215,7 +208,7 @@ double CorrelatedMHMove::performMove(double lHeat, double pHeat,
         std::string nm = n->getName();
         auto it = std::find_if(saved_nodes_x.begin(), saved_nodes_x.end(), [&](DagNode* const obj){
                 return (obj -> getName() == nm);
-                } );
+    } );
         if(it == saved_nodes_x.end()) throw RbException("Error, no saved matching node found for node " + nm );
         if(n->getValueAsString() == (*it)->getValueAsString()) saved_nodes_x.erase(it);
     }
@@ -233,56 +226,74 @@ double CorrelatedMHMove::performMove(double lHeat, double pHeat,
 
         if(!RbMath::isAComputableNumber(loopHR)) {
             if(RbMath::isNan(loopHR)) std::cerr << "Warning: using proposal " << p->getProposalName() << " resulted in HastingsRatio = NaN";
-            rejectProposal(p);
+            p->undoProposal();
+            p->cleanProposal();
             continue;
         }
 
         Enxny = computePosterior(lHeat, pHeat, prHeat);
 
         // restore value of x to calculate Exny
-        restoreNodesFromSaved(false);
+        switchXNodeValues();
         Exny = computePosterior(lHeat, pHeat, prHeat);
 
         // restore value of nx
-        restoreNodesFromSaved(false);
+        switchXNodeValues();
         double acceptanceRatio = (Enxny - Exny)*(ii+1)/(n_steps + 1) +
                 (Exny - Exy)*(1 - (ii + 1)/(n_steps + 1)) + stepHR;
         if(acceptanceRatio >= 0|| GLOBAL_RNG -> uniform01() < exp(acceptanceRatio)) {
-            acceptProposal(p);
             loopHR += stepHR;
             Exy = Exny;
             Enxy = Enxny;
         }
         else {
-            rejectProposal(p);
+            p->undoProposal();
         }
+        p->cleanProposal();
 
         fullPosteriorRatio += Enxy - Exy;
     }
-
-    // clear saved copies
-    clearSaved();
-
     double fullAcceptanceRatio = (fullPosteriorRatio + loopHR + mainHR)/(n_steps+1);
     return fullAcceptanceRatio;
 }
 
-void CorrelatedMHMove::restoreNodesFromSaved(bool all) {
-    std::vector<DagNode*> nodes = getDagNodes();
-    std::vector<DagNode*>* toRestore;
-    if (all) toRestore = &saved_nodes;
-    else toRestore = &saved_nodes_x;
+void CorrelatedMHMove::saveNodes() {
+    // copy state from before main proposal
+    for(DagNode* n : getDagNodes()) {
+        DagNode* copy = (n->clone());
+        saved_nodes.push_back(copy);
+        saved_nodes_x.push_back(copy);
+    }
+}
 
-    for(DagNode* n : *toRestore) {
+void CorrelatedMHMove::restoreNodes() {
+    std::vector<DagNode*> nodes = getDagNodes();
+
+    for(DagNode* n : saved_nodes) {
         std::string nm = n->getName();
         auto it = std::find_if(nodes.begin(), nodes.end(), [&](DagNode* const obj){
                 return (obj -> getName() == nm);
-                } );
+    } );
         if(it == nodes.end()) throw RbException("Error, no matching node found for saved node " + nm );
 
-        std::string value = n->getValueAsString();
-        n->setValueFromString((*it)->getValueAsString());
-        (*it)->setValueFromString(value);
+        (*it)->copyValueFromNode(n);
+    }
+}
+
+void CorrelatedMHMove::switchXNodeValues() {
+    std::vector<DagNode*> nodes = getDagNodes();
+
+    for(DagNode* n : saved_nodes_x) {
+        std::string nm = n->getName();
+        auto it = std::find_if(nodes.begin(), nodes.end(), [&](DagNode* const obj){
+                return (obj -> getName() == nm);
+    } );
+        if(it == nodes.end()) throw RbException("Error, no matching node found for saved node " + nm );
+
+        DagNode* tmp = n->clone();
+        n -> copyValueFromNode(*it);
+        (*it)->copyValueFromNode(tmp);
+        delete tmp;
     }
 }
 

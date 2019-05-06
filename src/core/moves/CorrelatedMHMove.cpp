@@ -187,22 +187,22 @@ void CorrelatedMHMove::acceptMainProposal() {
 
 double CorrelatedMHMove::performMove(double lHeat, double pHeat,
                                      double prHeat) {
-
+    
     saveNodes();
     double Exy = computePosterior(lHeat, pHeat, prHeat);
-
+    
     // update to primary variable (x -> nx)
     getMainProposal().prepareProposal();
     double mainHR = getMainProposal().doProposal();
     double Enxy = computePosterior(lHeat, pHeat, prHeat);
     double fullPosteriorRatio = Enxy - Exy;
-
+    
     if(!RbMath::isAComputableNumber(mainHR) || !RbMath::isAComputableNumber(fullPosteriorRatio)) {
         if(RbMath::isNan(mainHR)) std::cerr << "Warning: using proposal " << getMainProposal().getProposalName() << " resulted in HastingsRatio = NaN";
         if(RbMath::isNan(fullPosteriorRatio)) std::cerr << "Warning: using proposal " << getMainProposal().getProposalName() << " resulted in Posterior = NaN";
         return mainHR + fullPosteriorRatio;
     }
-
+    
     // only nodes that have actually been changed by the proposal need to be saved
     for(DagNode* n : getDagNodes()) {
         std::string nm = n->getName();
@@ -212,37 +212,36 @@ double CorrelatedMHMove::performMove(double lHeat, double pHeat,
         if(it == saved_nodes_x.end()) throw RbException("Error, no saved matching node found for node " + nm );
         if(n->getValueAsString() == (*it)->getValueAsString()) saved_nodes_x.erase(it);
     }
-
+    
     double loopHR = 0, stepHR, Exny, Enxny;
-
+    
     // updates to secondary variable(s) (y -> ny)
     for(unsigned int ii = 0; ii < n_steps; ii++) {
-
+        
         int i = GLOBAL_RNG->uniformInt(dragged_proposals.size());
         Proposal* p = dragged_proposals[i];
-
+        
         p->prepareProposal();
         stepHR = p->doProposal();
-
-        if(!RbMath::isAComputableNumber(loopHR)) {
-            if(RbMath::isNan(loopHR)) std::cerr << "Warning: using proposal " << p->getProposalName() << " resulted in HastingsRatio = NaN";
+        
+        if(!RbMath::isAComputableNumber(stepHR)) {
+            if(RbMath::isNan(stepHR)) std::cerr << "Warning: using proposal " << p->getProposalName() << " resulted in HastingsRatio = NaN";
             p->undoProposal();
             p->cleanProposal();
             continue;
         }
-
+        
         Enxny = computePosterior(lHeat, pHeat, prHeat);
-
+        
         // restore value of x to calculate Exny
         switchXNodeValues();
         Exny = computePosterior(lHeat, pHeat, prHeat);
-
+        
         // restore value of nx
         switchXNodeValues();
-        double acceptanceRatio = (Enxny - Exny)*(ii+1)/(n_steps + 1) +
+        double acceptanceRatio = (Enxny - Enxy)*(ii+1)/(n_steps + 1) +
                 (Exny - Exy)*(1 - (ii + 1)/(n_steps + 1)) + stepHR;
         if(acceptanceRatio >= 0|| GLOBAL_RNG -> uniform01() < exp(acceptanceRatio)) {
-            loopHR += stepHR;
             Exy = Exny;
             Enxy = Enxny;
         }
@@ -250,10 +249,11 @@ double CorrelatedMHMove::performMove(double lHeat, double pHeat,
             p->undoProposal();
         }
         p->cleanProposal();
-
+        
+        loopHR += stepHR;
         fullPosteriorRatio += Enxy - Exy;
     }
-    double fullAcceptanceRatio = (fullPosteriorRatio + loopHR + mainHR)/(n_steps+1);
+    double fullAcceptanceRatio = fullPosteriorRatio/(n_steps+1) + loopHR + mainHR;
     return fullAcceptanceRatio;
 }
 
@@ -268,12 +268,12 @@ void CorrelatedMHMove::saveNodes() {
 
 void CorrelatedMHMove::restoreNodes() {
     std::vector<DagNode*> nodes = getDagNodes();
-
+    
     for(DagNode* n : saved_nodes) {
         std::string nm = n->getName();
         auto it = std::find_if(nodes.begin(), nodes.end(), [&](DagNode* const obj){
-                return (obj -> getName() == nm);
-    } );
+			return (obj -> getName() == nm);
+		} );
         if(it == nodes.end()) throw RbException("Error, no matching node found for saved node " + nm );
 
         (*it)->copyValueFromNode(n);
@@ -286,8 +286,8 @@ void CorrelatedMHMove::switchXNodeValues() {
     for(DagNode* n : saved_nodes_x) {
         std::string nm = n->getName();
         auto it = std::find_if(nodes.begin(), nodes.end(), [&](DagNode* const obj){
-                return (obj -> getName() == nm);
-    } );
+			return (obj -> getName() == nm);
+		} );
         if(it == nodes.end()) throw RbException("Error, no matching node found for saved node " + nm );
 
         DagNode* tmp = n->clone();

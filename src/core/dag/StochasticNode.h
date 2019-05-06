@@ -636,6 +636,7 @@ void RevBayesCore::StochasticNode<valueType>::copyValueFromNode(RevBayesCore::Da
     if(RevBayesCore::StochasticNode<valueType>* sn = dynamic_cast<RevBayesCore::StochasticNode<valueType>*>(n)) {
         delete distribution;
         distribution = sn->getDistribution().clone();
+        this->touch();
     }
     else {
         throw RbException("Cannot copy the value of the node, node types do not match");

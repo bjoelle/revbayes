@@ -63,6 +63,8 @@ cd "$BUILD_DIR"/../../../src
 echo 'cmake_minimum_required(VERSION 2.6)
 project(RevBayes)
 
+set(CMAKE_CXX_STANDARD 11)
+
 # Consider:
 # -Wno-sign-compare
 # -D_GLIBCXX_DEBUG
@@ -105,7 +107,7 @@ echo '
 # We should ultimiately remove -Wno-reorder -Wno-unused-variable -Wno-unused-but-set-variable
 # But there are so many of them we cant see the really bad warnings.
 # So, disable those warnings for now.
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0 -Wall -msse -msse2 -msse3")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0 -std=c++11 -Wall -msse -msse2 -msse3 -Wno-sign-compare -Wno-reorder -Wno-unused-variable -Wno-unused-but-set-variable")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O0 -Wall")
 '  >> "$BUILD_DIR/CMakeLists.txt"
 elif [ "$mac" = "true" ]

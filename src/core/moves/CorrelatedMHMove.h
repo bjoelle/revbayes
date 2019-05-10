@@ -26,6 +26,7 @@ public:
     Proposal& getMainProposal();  //!< Get primary proposal
     std::vector<Proposal*> getDraggedProposals();  //!< Get dragged proposal(s)
     unsigned int getNSteps();  //!< Get number of dragged steps per move
+    void tune(); //!< Tune proposals
     
     double getMoveTuningParameter() const;  //!< Get tuning parameter
     void setMoveTuningParameter(double tp);  //!< Set tuning parameter
@@ -44,7 +45,7 @@ protected:
     void restoreNodes(); //!< Restore all node values
     void clearSaved();  //!< Clear vectors of saved nodes
 
-    virtual void swapNodeInternal(DagNode *oldN, DagNode *newN);  //!< Swap the pointers to the variable on which the move works on.
+    virtual void swapNodeInternal(DagNode *oldN, DagNode *newN);  //!< Swap the pointers to the variable on which the move works on.    
 
 private:
     std::vector<Proposal*> dragged_proposals;

@@ -106,6 +106,7 @@ void CorrelatedMHMove::performMcmcMove(double prHeat, double lHeat,
                                        double pHeat) {
 
     double fullAcceptanceRatio = performMove(lHeat, pHeat, prHeat);
+
     if(RbMath::isAComputableNumber(fullAcceptanceRatio) &&
             (fullAcceptanceRatio >= 0 || GLOBAL_RNG -> uniform01() < exp(fullAcceptanceRatio))) {
         acceptMainProposal();
@@ -208,12 +209,12 @@ double CorrelatedMHMove::performMove(double lHeat, double pHeat,
         std::string nm = n->getName();
         auto it = std::find_if(saved_nodes_x.begin(), saved_nodes_x.end(), [&](DagNode* const obj){
                 return (obj -> getName() == nm);
-    } );
+        } );
         if(it == saved_nodes_x.end()) throw RbException("Error, no saved matching node found for node " + nm );
         if(n->getValueAsString() == (*it)->getValueAsString()) saved_nodes_x.erase(it);
     }
-    
-    double loopHR = 0, stepHR, Exny, Enxny;
+
+    double stepHR, Exny, Enxny;
     
     // updates to secondary variable(s) (y -> ny)
     for(unsigned int ii = 0; ii < n_steps; ii++) {
@@ -230,7 +231,7 @@ double CorrelatedMHMove::performMove(double lHeat, double pHeat,
             p->cleanProposal();
             continue;
         }
-        
+
         Enxny = computePosterior(lHeat, pHeat, prHeat);
         
         // restore value of x to calculate Exny
@@ -239,8 +240,9 @@ double CorrelatedMHMove::performMove(double lHeat, double pHeat,
         
         // restore value of nx
         switchXNodeValues();
-        double acceptanceRatio = (Enxny - Enxy)*(ii+1)/(n_steps + 1) +
-                (Exny - Exy)*(1 - (ii + 1)/(n_steps + 1)) + stepHR;
+
+        double wt = static_cast<double>(ii + 1)/static_cast<double>(n_steps + 1);
+        double acceptanceRatio = (Enxny - Enxy)*wt + (Exny - Exy)*(1.0 - wt) + stepHR;
         if(acceptanceRatio >= 0|| GLOBAL_RNG -> uniform01() < exp(acceptanceRatio)) {
             Exy = Exny;
             Enxy = Enxny;
@@ -249,11 +251,10 @@ double CorrelatedMHMove::performMove(double lHeat, double pHeat,
             p->undoProposal();
         }
         p->cleanProposal();
-        
-        loopHR += stepHR;
+
         fullPosteriorRatio += Enxy - Exy;
     }
-    double fullAcceptanceRatio = fullPosteriorRatio/(n_steps+1) + loopHR + mainHR;
+    double fullAcceptanceRatio = fullPosteriorRatio/(n_steps + 1) + mainHR;
     return fullAcceptanceRatio;
 }
 
@@ -316,6 +317,16 @@ void CorrelatedMHMove::swapNodeInternal(DagNode *oldN, DagNode *newN) {
         if(std::find(nodes.begin(), nodes.end(), oldN) != nodes.end()) {
             p->swapNode(oldN, newN);
         }
+    }
+}
+
+void CorrelatedMHMove::tune( void ) {
+    if ( num_tried_current_period <= 3 ) return;
+
+    double rate = getNumberAcceptedCurrentPeriod() / double(num_tried_current_period);
+    getMainProposal().tune( rate );
+    for(Proposal* p : dragged_proposals) {
+        p->tune(rate);
     }
 }
 

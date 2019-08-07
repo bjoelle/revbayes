@@ -99,7 +99,7 @@ double CorrelatedMHMove::getMoveTuningParameter() const {
     return RbConstants::Double::nan;
 }
 
-void CorrelatedMHMove::setMoveTuningParameter(double tp) {
+void CorrelatedMHMove::setMoveTuningParameter(double) {
 }
 
 void CorrelatedMHMove::performMcmcMove(double prHeat, double lHeat,

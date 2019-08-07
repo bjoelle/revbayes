@@ -29,7 +29,7 @@ public:
     void tune(); //!< Tune proposals
     
     double getMoveTuningParameter() const;  //!< Get tuning parameter
-    void setMoveTuningParameter(double tp);  //!< Set tuning parameter
+    void setMoveTuningParameter(double);  //!< Set tuning parameter
 
 protected:
     void performMcmcMove(double prHeat, double lHeat, double pHeat);  //!< Perform MCMC move

@@ -36,7 +36,7 @@ protected:
     void performHillClimbingMove(double lHeat, double pHeat);  //!< Perform hill-climbing move
 
     double performMove(double lHeat, double pHeat, double prHeat = 1);  //!< Propose correlated move
-    double computePosterior(double lHeat, double pHeat, double prHeat = 1);  //!< Compute full posterior of current DAG
+    double computePosterior(double lHeat, double pHeat, double prHeat = 1, Proposal *p = nullptr);  //!< Compute full posterior of current DAG
 
     void acceptMainProposal();  //!< Accept proposal and keep all nodes
     void rejectMainProposal();  //!< Reject proposal and restore all nodes
@@ -45,7 +45,7 @@ protected:
     void restoreNodes(); //!< Restore all node values
     void clearSaved();  //!< Clear vectors of saved nodes
 
-    virtual void swapNodeInternal(DagNode *oldN, DagNode *newN);  //!< Swap the pointers to the variable on which the move works on.    
+    virtual void swapNodeInternal(DagNode *oldN, DagNode *newN);  //!< Swap the pointers to the variable on which the move works on.
 
 private:
     std::vector<Proposal*> dragged_proposals;

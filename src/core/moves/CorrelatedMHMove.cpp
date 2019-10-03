@@ -131,7 +131,7 @@ void CorrelatedMHMove::performHillClimbingMove(double lHeat, double pHeat) {
     }
 }
 
-double CorrelatedMHMove::computePosterior(double lHeat, double pHeat, double prHeat) {
+double CorrelatedMHMove::computePosterior(double lHeat, double pHeat, double prHeat, Proposal* p) {
 
     double ln_likelihood = 0, ln_prior = 0;
 
@@ -139,12 +139,14 @@ double CorrelatedMHMove::computePosterior(double lHeat, double pHeat, double prH
     const std::vector<DagNode*> touched_nodes = getDagNodes();
     const RbOrderedSet<DagNode*> &affected_nodes = getAffectedNodes();
 
-    // first we touch all the nodes
+    // touch nodes associated with proposal
     // that will set the flags for recomputation
-    /*for (DagNode* the_node : touched_nodes) {
-        // flag for recomputation
-        the_node->touch();
-    }*/
+    if(p != nullptr) {
+        for (DagNode* the_node : p->getNodes()) {
+            // flag for recomputation
+            the_node->touch();
+        }
+    }
 
     // compute the probability of the current value for each node
     for (DagNode* the_node : touched_nodes) {
@@ -195,7 +197,7 @@ double CorrelatedMHMove::performMove(double lHeat, double pHeat,
     // update to primary variable (x -> nx)
     getMainProposal().prepareProposal();
     double mainHR = getMainProposal().doProposal();
-    double Enxy = computePosterior(lHeat, pHeat, prHeat);
+    double Enxy = computePosterior(lHeat, pHeat, prHeat, &getMainProposal());
     double fullPosteriorRatio = Enxy - Exy;
     
     if(!RbMath::isAComputableNumber(mainHR) || !RbMath::isAComputableNumber(fullPosteriorRatio)) {
@@ -232,11 +234,11 @@ double CorrelatedMHMove::performMove(double lHeat, double pHeat,
             continue;
         }
 
-        Enxny = computePosterior(lHeat, pHeat, prHeat);
+        Enxny = computePosterior(lHeat, pHeat, prHeat, p);
         
         // restore value of x to calculate Exny
         switchXNodeValues();
-        Exny = computePosterior(lHeat, pHeat, prHeat);
+        Exny = computePosterior(lHeat, pHeat, prHeat, &getMainProposal());
         
         // restore value of nx
         switchXNodeValues();

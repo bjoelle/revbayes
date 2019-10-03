@@ -112,7 +112,7 @@ double ScaleProposalContinuous::doProposal( void )
     
     // compute the Hastings ratio
     double lnHastingsratio = log( newVal / val ); // Jacobian
-    val = newVal;
+    variable->setValue(new double(newVal));
     
     return lnHastingsratio;
 }

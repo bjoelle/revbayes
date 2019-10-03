@@ -141,10 +141,10 @@ double CorrelatedMHMove::computePosterior(double lHeat, double pHeat, double prH
 
     // first we touch all the nodes
     // that will set the flags for recomputation
-    for (DagNode* the_node : touched_nodes) {
+    /*for (DagNode* the_node : touched_nodes) {
         // flag for recomputation
         the_node->touch();
-    }
+    }*/
 
     // compute the probability of the current value for each node
     for (DagNode* the_node : touched_nodes) {

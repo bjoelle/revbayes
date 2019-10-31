@@ -147,6 +147,10 @@ double CorrelatedMHMove::computePosterior(double lHeat, double pHeat, double prH
             the_node->touch();
         }
     }
+    else {
+      for (DagNode* the_node : touched_nodes) the_node->touch();
+      for (DagNode* the_node : affected_nodes) the_node->touch();
+    }
 
     // compute the probability of the current value for each node
     for (DagNode* the_node : touched_nodes) {

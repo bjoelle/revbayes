@@ -28,7 +28,6 @@
 #include "TypedFunction.h"
 #include "UserFunctionNode.h"
 
-
 using namespace RevLanguage;
 
 /**

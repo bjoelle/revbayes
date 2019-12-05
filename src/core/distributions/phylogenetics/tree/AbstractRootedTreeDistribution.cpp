@@ -21,6 +21,8 @@
 #include "TypedDagNode.h"
 #include "TypedDistribution.h"
 
+#include "RlUserInterface.h"
+
 namespace RevBayesCore { class DagNode; }
 namespace RevBayesCore { template <class valueType> class RbOrderedSet; }
 
@@ -423,9 +425,7 @@ void AbstractRootedTreeDistribution::recomputeDivergenceTimesSinceOrigin( void )
 
 void AbstractRootedTreeDistribution::redrawValue( void )
 {
-    
-    simulateTree();
-    
+    simulateTree(); 
 }
 
 
@@ -600,6 +600,7 @@ double AbstractRootedTreeDistribution::simulateNextAge(size_t n, double origin, 
 
 void AbstractRootedTreeDistribution::simulateTree( void )
 {
+    RBOUT("Simulating tree");
 
     // the time tree object (topology & times)
     Tree *psi = new Tree();
@@ -667,6 +668,8 @@ void AbstractRootedTreeDistribution::simulateTree( void )
     // finally store the new value
     delete value;
     value = psi;
+
+    RBOUT("Done tree");
 
 }
 

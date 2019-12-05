@@ -34,8 +34,6 @@ TaxonReader::TaxonReader(const std::string &fn, char delim) : DelimitedDataReade
 
     std::string arr[] = {"taxon","age","species","min","max"};
     std::vector<std::string> fields (arr, arr + sizeof(arr) / sizeof(arr[0]) );
-
-    RBOUT("Starting taxon read");
     
     for (size_t i = 0 ; i < line.size() ; ++i)
     {
@@ -59,8 +57,6 @@ TaxonReader::TaxonReader(const std::string &fn, char delim) : DelimitedDataReade
             throw RbException("Unrecognized field: "+tmp+" in the taxon definition file. Allowed fields: "+field_stream.str());
         }
     }
-
-    RBOUT("First loop done");
     
     if (column_map.find("taxon") == column_map.end())
     {
@@ -128,8 +124,6 @@ TaxonReader::TaxonReader(const std::string &fn, char delim) : DelimitedDataReade
         
         taxa.push_back( t );
     }
-
-    RBOUT("Second loop done");
     
     std::set<std::string> found;
     for (size_t i = 0; i < taxa.size(); i++)
@@ -145,8 +139,6 @@ TaxonReader::TaxonReader(const std::string &fn, char delim) : DelimitedDataReade
             throw(RbException(ss.str()));
         }
     }
-
-    RBOUT("Third loop done");
 
 }
 

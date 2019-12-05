@@ -999,6 +999,7 @@ void RevBayesCore::PhyloCTMCSiteHomogeneousConditional<charType>::updateCorrecti
 
 template<class charType>
 void RevBayesCore::PhyloCTMCSiteHomogeneousConditional<charType>::redrawValue( void ) {
+    RBOUT("Simulating phyloctmc");
 
     if (coding == AscertainmentBias::ALL)
     {
@@ -1136,6 +1137,7 @@ void RevBayesCore::PhyloCTMCSiteHomogeneousConditional<charType>::redrawValue( v
             this->changed_nodes[index] = true;
         }
     }
+    RBOUT("Done simulating");
 
 }
 
